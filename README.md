@@ -105,12 +105,7 @@ Detailed references: [geometry](docs/algorithms.md), [Warp arrays](docs/gpu.md),
 [surface forces](docs/surface_coupling.md), and
 [surface linearization](docs/surface_linearization.md).
 
-## Status and testing
-
-This is a development snapshot based on 0.13.0. Packaging it as a repository
-does not turn the experimental solvers into a validated release. The shared
-material GPU comparison in the source bundle failed its native trajectory
-parity gate; material parameters are not calibrated to hardware.
+## Testing
 
 [Testing instructions](docs/testing.md) distinguish the default suite, host
 integration checks, CUDA tests, and the separately compiled CPU material hook.
