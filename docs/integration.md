@@ -71,6 +71,31 @@ The same bridge accepts tetra (`D3EMB003`) and shell (`D3SUR001`) files. Shell
 invalid entries preserve the previous output. Check validity before consuming
 the mesh. Zero validity on the first update means the output is not initialized.
 
+## Verified host versions
+
+The geometry bridge (`FlexEmbedding`, the C++ adapters and the binding exporters)
+was also checked against a MuJoCo 3.17 stack, in addition to 4.0.1:
+
+| Host | MuJoCo | Warp | mujoco_warp | Result |
+| --- | --- | --- | --- | --- |
+| Experimental physics | 4.0.1 | 1.19.0 | 4.0.1 | Full suite |
+| 3.17 stack | 3.17.0 | 1.16.0 | 3.17.0 source build (patched) | 16 Python integration tests pass on CPU and CUDA; C++ adapters and exporters build and run |
+
+On MuJoCo 3.17.0, two C++ checks fail: `mujoco_simplex_rest` and
+`mujoco_contact_audit`. Both exercise the experimental contact/CCD-tolerance
+behavior, not the embedding path. Do not use the experimental contact policies
+on 3.17; they need the 4.0.1 pins above. The direct effective-metric solves and
+`NewtonFactorPolicy` in `docs/experimental.md` carry their own version or
+source-hash guards and were measured on 3.17.
+
+`bench/rollout_ab.py` measures the geometry bridge's cost against a native
+`mjwarp.step` CUDA graph, and checks that physics results are unchanged relative
+to a native-vs-native control. Measured on one laptop GPU (8 GB) with a generated
+bag scene and the 3.17.0 source build: about 0.6-1% added step time at
+6k dense points and about 4% at 100k points, at 1-64 worlds. The cost at large
+point counts is the embedding kernel's memory writes, not the kinematics refresh.
+Treat these as indicative for that hardware only.
+
 ## Boundaries
 
 Dense meshes do not automatically become colliders. Native MuJoCo flexes remain

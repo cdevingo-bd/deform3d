@@ -25,7 +25,8 @@ def rest_hash(rest_float32):
     return value
 
 
-def read_bindings(path: Path, model: mujoco.MjModel):
+def read_bindings(path, model: mujoco.MjModel):
+    path = Path(path)
     with path.open("rb") as f:
         header = f.read(40)
         if len(header) != 40 or header[:8] != MAGIC:
