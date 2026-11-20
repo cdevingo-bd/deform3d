@@ -9,9 +9,10 @@ import numpy as np
 import pytest
 import warp as wp
 
-from deform3d_warp.bindings import RECORD, rest_hash, topology_hash
+from deform3d_warp.bindings import RECORD, read_bindings, rest_hash, topology_hash
 from deform3d_warp.mujoco_bridge import FlexEmbedding
 from deform3d_warp.surface_bindings import RECORD as SURFACE_RECORD
+from deform3d_warp.surface_bindings import read_surface_bindings
 
 
 @pytest.mark.integration
@@ -56,6 +57,8 @@ def test_batched_step_refresh_and_binding_validation(tmp_path, dimension):
         if dimension == 2:
             np.testing.assert_array_equal(bridge.validity.numpy(), 1)
         np.testing.assert_allclose(result[0], result[1], atol=1e-6)
+        reader = read_bindings if dimension == 3 else read_surface_bindings
+        assert reader(str(path), cm)[0] == reader(path, cm)[0] == 0  # str and Path both work
         changed = bytearray(path.read_bytes())
         changed[24] ^= 1
         path.write_bytes(changed)

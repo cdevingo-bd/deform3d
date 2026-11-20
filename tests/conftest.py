@@ -5,7 +5,8 @@ import importlib.metadata
 import pytest
 
 BASE_TESTS = {"test_warp_device.py", "test_package_resources.py"}
-INTEGRATION_TESTS = {"test_flex_bridge.py"}
+INTEGRATION_TESTS = {"test_flex_bridge.py", "test_dense_effective.py", "test_newton_factor.py",
+                     "test_newton_coupled.py"}
 HOOK_TESTS = {"test_mujoco_simplex.py"}
 
 
