@@ -132,18 +132,16 @@ template<class T> class SurfaceEmbedding {
         return SurfaceEmbedStatus::NonFiniteInput;
       }
       const P point = wide(rest_render_vertices[i]);
-      L best2 = std::numeric_limits<L>::infinity();
+      L best_distance = std::numeric_limits<L>::infinity();
       std::uint32_t nearest = std::numeric_limits<std::uint32_t>::max();
       std::array<L, 3> weights{};
-      candidate.find_closest(0, point, best2, nearest, weights);
-      if (!std::isfinite(best2) || std::sqrt(best2) > L(options.max_distance)) {
+      candidate.find_closest(0, point, best_distance, nearest, weights);
+      if (!std::isfinite(best_distance) || best_distance > L(options.max_distance)) {
         if (error_index) *error_index = i;
         return SurfaceEmbedStatus::OutsideSurface;
       }
       const Triangle& triangle = candidate.triangles_[nearest];
-      const P projected = triangle.rest[0] * weights[0] + triangle.rest[1] * weights[1] +
-                          triangle.rest[2] * weights[2];
-      const P residual = point - projected;
+      const P residual = projection_residual(triangle, point, weights);
       const L offset = dot(residual, triangle.normal);
       if (!std::isfinite(offset) || std::abs(offset) > L(std::numeric_limits<T>::max())) {
         if (error_index) *error_index = i;
@@ -275,11 +273,20 @@ template<class T> class SurfaceEmbedding {
     box.lo.z = std::min(box.lo.z, p.z); box.hi.z = std::max(box.hi.z, p.z);
   }
   static L component(P p, std::size_t axis) noexcept { return axis == 0 ? p.x : axis == 1 ? p.y : p.z; }
-  static L distance2(const Box& box, P p) noexcept {
+  static P projection_residual(const Triangle& triangle, P point, const std::array<L, 3>& weights) noexcept {
+    // Work relative to a vertex so a large world translation does not swamp
+    // the small tangential residual used to validate normal-offset bindings.
+    return (point - triangle.rest[0]) -
+           (triangle.rest[1] - triangle.rest[0]) * weights[1] -
+           (triangle.rest[2] - triangle.rest[0]) * weights[2];
+  }
+  // Keep distances unsquared: long double has only double's exponent range on
+  // some platforms, so squaring finite distances can overflow or underflow.
+  static L distance(const Box& box, P p) noexcept {
     const L dx = std::max({box.lo.x - p.x, L(0), p.x - box.hi.x});
     const L dy = std::max({box.lo.y - p.y, L(0), p.y - box.hi.y});
     const L dz = std::max({box.lo.z - p.z, L(0), p.z - box.hi.z});
-    return dx * dx + dy * dy + dz * dz;
+    return std::hypot(dx, dy, dz);
   }
   std::uint32_t build_node(std::size_t begin, std::size_t end, std::size_t leaf_size) {
     const auto id = std::uint32_t(nodes_.size());
@@ -333,36 +340,34 @@ template<class T> class SurfaceEmbedding {
     const L inverse = 1 / (va + vb + vc), v = vb * inverse, w = vc * inverse;
     return {{1-v-w,v,w}};
   }
-  void find_closest(std::uint32_t node_id, P point, L& best2,
+  void find_closest(std::uint32_t node_id, P point, L& best_distance,
                     std::uint32_t& nearest, std::array<L, 3>& weights) const noexcept {
     const Node& node = nodes_[node_id];
-    if (distance2(node.box, point) > best2) return;
+    if (distance(node.box, point) > best_distance) return;
     if (node.leaf) {
       for (std::size_t i = node.begin; i < node.end; ++i) {
         const std::uint32_t id = order_[i];
         const Triangle& triangle = triangles_[id];
-        if (distance2(triangle.box, point) > best2) continue;
+        if (distance(triangle.box, point) > best_distance) continue;
         auto candidate = closest_weights(triangle, point);
         L total = 0;
         for (L& w : candidate) { w = std::max(L(0), w); total += w; }
         if (!(total > 0) || !std::isfinite(total)) continue;
         for (L& w : candidate) w /= total;
-        const P q = triangle.rest[0] * candidate[0] + triangle.rest[1] * candidate[1] + triangle.rest[2] * candidate[2];
-        const P delta = point - q;
-        const L d2 = dot(delta, delta);
-        if (d2 < best2 || (d2 == best2 && id < nearest)) {
-          best2 = d2; nearest = id; weights = candidate;
+        const L candidate_distance = length(projection_residual(triangle, point, candidate));
+        if (candidate_distance < best_distance || (candidate_distance == best_distance && id < nearest)) {
+          best_distance = candidate_distance; nearest = id; weights = candidate;
         }
       }
       return;
     }
-    const L left = distance2(nodes_[node.left].box, point), right = distance2(nodes_[node.right].box, point);
+    const L left = distance(nodes_[node.left].box, point), right = distance(nodes_[node.right].box, point);
     if (left <= right) {
-      find_closest(node.left, point, best2, nearest, weights);
-      find_closest(node.right, point, best2, nearest, weights);
+      find_closest(node.left, point, best_distance, nearest, weights);
+      find_closest(node.right, point, best_distance, nearest, weights);
     } else {
-      find_closest(node.right, point, best2, nearest, weights);
-      find_closest(node.left, point, best2, nearest, weights);
+      find_closest(node.right, point, best_distance, nearest, weights);
+      find_closest(node.left, point, best_distance, nearest, weights);
     }
   }
   template<class Read> P evaluate_point(const Binding& binding, Read read) const noexcept {

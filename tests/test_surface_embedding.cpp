@@ -121,8 +121,36 @@ static void validation() {
   CHECK(finite(output[0]));
   double sum=0; for(auto w:embedding.bindings()[0].weights) sum+=w;
   CHECK(near(sum,1.,1e-14));
+  options.max_distance=1e200;
+  CHECK(embedding.prepare(rest,4,triangle,1,huge,1,options)==S::OutsideSurface);
+  options.max_distance=2e200;
+  CHECK(embedding.prepare(rest,4,triangle,1,huge,1,options)==S::Ok);
   CHECK(embedding.prepare(rest,4,triangle,1,nullptr,0)==S::Ok);
   CHECK(embedding.evaluate(rest,4,output,2)==S::Ok);
+}
+
+static void extreme_distances() {
+  using V=Vec3<double>; using S=SurfaceEmbedStatus;
+  // Distinct tiny distances must not all become zero and select triangle 0.
+  // Also exercise BVH pruning and large distances whose squares overflow.
+  for(double scale:{1e-200,1e200}) {
+    const V rest[6]={{0,0,0},{scale,0,0},{0,scale,0},
+                     {0,0,3*scale},{scale,0,3*scale},{0,scale,3*scale}};
+    const std::uint32_t triangles[6]={0,1,2,3,4,5};
+    const V point{.25*scale,.25*scale,3.125*scale};
+    for(std::size_t leaf_size:{1,8}) {
+      SurfaceEmbedOptions<double> options;
+      options.max_distance=.2*scale; options.bvh_leaf_size=leaf_size;
+      SurfaceEmbedding<double> embedding; V output;
+      CHECK(embedding.prepare(rest,6,triangles,2,&point,1,options)==S::Ok);
+      CHECK(embedding.bindings()[0].triangle==1);
+      CHECK(embedding.evaluate(rest,6,&output,1)==S::Ok);
+      CHECK(near(output/scale,point/scale,1e-13));
+      options.max_distance=.1*scale;
+      CHECK(embedding.prepare(rest,6,triangles,2,&point,1,options)==S::OutsideSurface);
+      CHECK(embedding.bindings()[0].triangle==1);
+    }
+  }
 }
 
 template<class T> void dense_reference() {
@@ -216,7 +244,7 @@ template<class T> void scales_and_nonplanar_reference() {
 }
 
 int main() {
-  covariance<float>(); covariance<double>(); validation();
+  covariance<float>(); covariance<double>(); validation(); extreme_distances();
   dense_reference<float>(); dense_reference<double>();
   scales_and_nonplanar_reference<float>(); scales_and_nonplanar_reference<double>();
 }
