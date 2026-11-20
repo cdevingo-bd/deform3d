@@ -13,6 +13,12 @@ jobs:
       - run: cmake -S . -B build-core -DCMAKE_BUILD_TYPE=Release -DDEFORM3D_BUILD_BENCH=OFF
       - run: cmake --build build-core --config Release --parallel 2
       - run: ctest --test-dir build-core -C Release --output-on-failure
+      - name: Check Newton convergence with native floating-point instructions
+        if: runner.os == 'Linux'
+        run: |
+          cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release -DDEFORM3D_BUILD_BENCH=OFF -DCMAKE_CXX_FLAGS=-march=native
+          cmake --build build-native --target deform3d_implicit_surface --parallel 2
+          ctest --test-dir build-native -R '^implicit_surface$' --output-on-failure
       - run: cmake --install build-core --config Release --prefix build-install
       - run: python tools/check_cmake_install.py build-install
   python:

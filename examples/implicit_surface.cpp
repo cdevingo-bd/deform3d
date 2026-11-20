@@ -9,6 +9,11 @@ using namespace deform3d;
 using V=Vec3<double>;
 using S=SurfaceEmbedStatus;
 
+static int fail(int code,const char* message) {
+  std::fprintf(stderr,"implicit_surface: %s (error %d)\n",message,code);
+  return code;
+}
+
 static bool solve(double a[9][10],double x[9]) {
   for(int col=0;col<9;++col) {
     int pivot=col;for(int row=col+1;row<9;++row)if(std::abs(a[row][col])>std::abs(a[pivot][col]))pivot=row;
@@ -34,9 +39,9 @@ int main() {
   for(int i=0;i<4;++i)targets[i]=points[i]+V{-.08*points[i].x,.04*points[i].y,.14+.25*points[i].x};
   SurfaceEmbedOptions<double> options;options.max_distance=.1;
   SurfaceEmbedding<double> embedding;
-  if(embedding.prepare(rest,3,tri,1,points,4,options)!=S::Ok)return 1;
+  if(embedding.prepare(rest,3,tri,1,points,4,options)!=S::Ok)return fail(1,"embedding preparation failed");
   SurfaceCoupling<double> coupling;SurfaceLinearization<double> op;
-  if(coupling.prepare(embedding)!=S::Ok || op.prepare(embedding)!=S::Ok)return 2;
+  if(coupling.prepare(embedding)!=S::Ok || op.prepare(embedding)!=S::Ok)return fail(2,"operator preparation failed");
   constexpr double stiffness=7500.,dt=.01,mass=1.,inertia=mass/(dt*dt);
   Mat3<double> k[4];for(auto& m:k)m.m[0]=m.m[4]=m.m[8]=-stiffness;
   V y[4],f[4],nodal[3];
@@ -49,7 +54,8 @@ int main() {
   };
   int iterations=0;double residual=1,energy=0;
   for(;iterations<30;++iterations) {
-    if(!evaluate(x,energy) || op.update(x,3,f,k,4)!=S::Ok || op.evaluate_forces(nodal,3)!=S::Ok)return 3;
+    if(!evaluate(x,energy) || op.update(x,3,f,k,4)!=S::Ok || op.evaluate_forces(nodal,3)!=S::Ok)
+      return fail(3,"force linearization failed");
     V r[3];double norm2=0,force2=0;
     for(int i=0;i<3;++i){r[i]=(x[i]-rest[i])*inertia-nodal[i];norm2+=dot(r[i],r[i]);force2+=dot(nodal[i],nodal[i]);}
     residual=std::sqrt(norm2/std::max(force2,1.));
@@ -58,27 +64,48 @@ int main() {
     for(int col=0;col<9;++col) {
       V basis[3]{},product[3];
       if(col%3==0)basis[col/3].x=1;else if(col%3==1)basis[col/3].y=1;else basis[col/3].z=1;
-      if(op.apply(basis,3,product,3)!=S::Ok)return 4;
+      if(op.apply(basis,3,product,3)!=S::Ok)return fail(4,"Jacobian application failed");
       for(int row=0;row<9;++row)matrix[row][col]=(row==col?inertia:0)-
           (row%3==0?product[row/3].x:row%3==1?product[row/3].y:product[row/3].z);
     }
     for(int row=0;row<9;++row)matrix[row][9]=-(row%3==0?r[row/3].x:row%3==1?r[row/3].y:r[row/3].z);
-    double delta[9]{};if(!solve(matrix,delta))return 5;
+    double delta[9]{};if(!solve(matrix,delta))return fail(5,"Newton matrix is singular");
     V direction[3];double slope=0;
     for(int i=0;i<3;++i){direction[i]={delta[3*i],delta[3*i+1],delta[3*i+2]};slope+=dot(r[i],direction[i]);}
-    if(!(slope<0))return 6;
+    if(!(slope<0))return fail(6,"Newton direction is not a descent direction");
     bool accepted=false;double alpha=1;
     for(int search=0;search<24;++search,alpha*=.5) {
       V trial[3];for(int i=0;i<3;++i)trial[i]=x[i]+direction[i]*alpha;
       double candidate;
-      if(evaluate(trial,candidate) && candidate<=energy+1e-4*alpha*slope) {
+      if(!evaluate(trial,candidate))continue;
+      bool decrease=candidate<=energy+1e-4*alpha*slope;
+      const double roundoff=16*std::numeric_limits<double>::epsilon()*std::max({1.,energy,candidate});
+      // Near convergence, total energies cannot resolve the predicted decrease.
+      // Require a smaller force-balance residual instead of rejecting a valid
+      // Newton step because its energy rounded up by a few ulps.
+      if(-alpha*slope<=roundoff && std::abs(candidate-energy)<=roundoff) {
+        V trial_nodal[3];
+        if(coupling.transfer_forces(f,4,trial_nodal,3)!=S::Ok)
+          return fail(7,"trial force transfer failed");
+        double trial_norm2=0;
+        for(int i=0;i<3;++i) {
+          const V trial_r=(trial[i]-rest[i])*inertia-trial_nodal[i];
+          trial_norm2+=dot(trial_r,trial_r);
+        }
+        decrease=trial_norm2<norm2;
+      }
+      if(decrease) {
         std::copy(trial,trial+3,x);accepted=true;break;
       }
     }
-    if(!accepted)return 7;
+    if(!accepted) {
+      std::fprintf(stderr,"iteration %d: relative residual %.12g\n",iterations,residual);
+      return fail(7,"line search did not find an acceptable step");
+    }
   }
   // Validate with the original uncompressed force transfer, not cached forces.
-  if(!evaluate(x,energy) || coupling.transfer_forces(f,4,nodal,3)!=S::Ok)return 8;
+  if(!evaluate(x,energy) || coupling.transfer_forces(f,4,nodal,3)!=S::Ok)
+    return fail(8,"final force transfer failed");
   double norm2=0,force2=0;
   for(int i=0;i<3;++i) {const V r=(x[i]-rest[i])*inertia-nodal[i];norm2+=dot(r,r);force2+=dot(nodal[i],nodal[i]);}
   residual=std::sqrt(norm2/std::max(force2,1.));
