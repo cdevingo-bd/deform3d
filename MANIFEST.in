@@ -1,0 +1,14 @@
+include CMakeLists.txt LICENSE README.md CONTRIBUTING.md
+recursive-include include *.hpp
+recursive-include cmake *.cmake.in
+recursive-include licenses *.txt
+recursive-include third_party *LICENSE.txt
+recursive-include tests *.py *.cpp
+include tests/fixtures/*.npz
+recursive-include examples *.py *.cpp *.xml
+recursive-include adapters *.cpp
+recursive-include tools *.py
+recursive-include bench *.py *.cpp
+recursive-include docs *.md
+global-exclude *.pyc
+global-exclude __pycache__

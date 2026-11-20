@@ -1,0 +1,43 @@
+name: checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  cpp:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build-core -DCMAKE_BUILD_TYPE=Release -DDEFORM3D_BUILD_BENCH=OFF
+      - run: cmake --build build-core --config Release --parallel 2
+      - run: ctest --test-dir build-core -C Release --output-on-failure
+      - run: cmake --install build-core --config Release --prefix build-install
+      - run: python tools/check_cmake_install.py build-install
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install '.[dev]' 'warp-lang==1.19.0'
+      - run: python -m pytest -q
+      - run: python examples/quickstart.py --device cpu
+      - run: python -m build
+      - run: python tools/check_wheel.py dist/deform3d_warp-0.13.0-py3-none-any.whl
+  mujoco:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install '.[physics,test]'
+      - run: python -m pytest -q --integration
+      - run: python examples/simulator_smoke.py --backend mjwarp --device cpu
+      - run: python tools/configure_mujoco.py
+      - run: cmake --build build --parallel 2
+      - run: ctest --test-dir build --output-on-failure
+      - run: python tests/test_surface_bindings.py --exporter build/deform3d_export_surface --tetra-exporter build/deform3d_export_bindings

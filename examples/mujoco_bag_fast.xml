@@ -1,0 +1,42 @@
+<mujoco model="cascade_film_bag_contents">
+  <option timestep="0.002" integrator="discrete" iterations="150" tolerance="1e-5" solver="Newton" jacobian="sparse" />
+  <size memory="128M" />
+  <visual>
+    <global offwidth="1280" offheight="720" />
+    <headlight ambient=".3 .3 .3" diffuse=".8 .8 .8" specular=".4 .4 .4" />
+  </visual>
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".035 .065 .105" rgb2=".012 .023 .04" width="256" height="256" />
+  </asset>
+  <worldbody>
+    <light pos="0 -1 2" dir="0 1 -2" diffuse=".8 .8 .8" />
+    <geom name="floor" type="plane" size="2 2 .01" rgba=".08 .12 .18 1" friction=".6 .005 .0001" />
+    <flexcomp name="bag" type="direct" dim="2" mass="0.020382885685759997" radius=".0012" rgba=".68 .87 .96 .38" point="-0.3302 0 0.1926 0.3302 0 0.1926 -0.2502 -0.0800254 0.6726 0.2502 -0.0800254 0.6726 0.2502 0.0800254 0.6726 -0.2502 0.0800254 0.6726 -0.2502 -0.0800254 0.85 0.2502 -0.0800254 0.85 0.2502 0.0800254 0.85 -0.2502 0.0800254 0.85 0 0 0.1926 -0.2902 -0.0400127 0.4326 -0.04 -0.0400127 0.4326 0.2902 -0.0400127 0.4326 0 -0.0800254 0.6726 0.2902 0.0400127 0.4326 0.2502 0 0.6726 -0.2902 0.0400127 0.4326 0.04 0.0400127 0.4326 -0.2502 0 0.6726 0 0.0800254 0.6726 -0.2502 -0.0800254 0.7613 -0.2502 0 0.7613 0 -0.0800254 0.7613 0.2502 -0.0800254 0.7613 0 -0.0800254 0.85 0.2502 0 0.7613 0.2502 0.0800254 0.7613 0.2502 0 0.85 0 0.0800254 0.7613 -0.2502 0.0800254 0.7613 -0.2502 0 0.85 0 0.0800254 0.85" element="0 10 12 10 1 13 12 13 3 10 13 12 0 12 11 12 3 14 11 14 2 12 14 11 1 15 13 15 4 16 13 16 3 15 16 13 1 10 18 10 0 17 18 17 5 10 17 18 1 18 15 18 5 20 15 20 4 18 20 15 0 11 17 11 2 19 17 19 5 11 19 17 2 14 23 14 3 24 23 24 7 14 24 23 2 23 21 23 7 25 21 25 6 23 25 21 3 16 26 16 4 27 26 27 8 16 27 26 3 26 24 26 8 28 24 28 7 26 28 24 4 20 29 20 5 30 29 30 9 20 30 29 4 29 27 29 9 32 27 32 8 29 32 27 5 19 22 19 2 21 22 21 6 19 21 22 5 22 30 22 6 31 30 31 9 22 31 30">
+      <pin id="6 7 8 9 25 28 31 32" />
+      <contact selfcollide="auto" condim="3" friction=".35 .005 .0001" solref=".006 1" />
+      <elasticity young="50000000.0" poisson=".35" thickness="2.54e-05" elastic2d="both" damping="0.002" />
+    </flexcomp>
+    <flexcomp name="package" type="grid" dim="3" count="2 2 3" spacing=".074 .04 .076" pos=".07 0 .62" mass=".07" radius=".0012" rgba=".98 .49 .17 1">
+      <contact selfcollide="none" condim="3" friction=".4 .005 .0001" solref=".006 1" />
+      <elasticity young="6000" poisson=".3" damping=".015" />
+    </flexcomp>
+    <body name="fruit" pos="-.10 0 .50">
+      <freejoint />
+      <geom name="fruit_collision" type="ellipsoid" size=".039 .037 .04" mass=".08" rgba=".95 .55 .16 1" friction=".4 .005 .0001" solref=".006 1" />
+    </body>
+    <body name="front_pad" mocap="true" pos="0 -0.12 0.48">
+      <geom name="front_pad_geom" type="box" size=".15 .015 .09" rgba=".13 .23 .31 1" friction=".5 .005 .0001" solref=".006 1" />
+    </body>
+    <body name="back_pad" mocap="true" pos="0 0.12 0.48">
+      <geom name="back_pad_geom" type="box" size=".15 .015 .09" rgba=".13 .23 .31 1" friction=".5 .005 .0001" solref=".006 1" />
+    </body>
+    <geom type="capsule" fromto="-0.2502 -0.0800254 0.85 0 -0.0800254 0.85" size=".004" contype="0" conaffinity="0" rgba=".3 .43 .53 1" />
+    <geom type="capsule" fromto="0.2502 -0.0800254 0.85 0 -0.0800254 0.85" size=".004" contype="0" conaffinity="0" rgba=".3 .43 .53 1" />
+    <geom type="capsule" fromto="0.2502 -0.0800254 0.85 0.2502 0 0.85" size=".004" contype="0" conaffinity="0" rgba=".3 .43 .53 1" />
+    <geom type="capsule" fromto="0.2502 0.0800254 0.85 0.2502 0 0.85" size=".004" contype="0" conaffinity="0" rgba=".3 .43 .53 1" />
+    <geom type="capsule" fromto="-0.2502 -0.0800254 0.85 -0.2502 0 0.85" size=".004" contype="0" conaffinity="0" rgba=".3 .43 .53 1" />
+    <geom type="capsule" fromto="-0.2502 0.0800254 0.85 -0.2502 0 0.85" size=".004" contype="0" conaffinity="0" rgba=".3 .43 .53 1" />
+    <geom type="capsule" fromto="0.2502 0.0800254 0.85 0 0.0800254 0.85" size=".004" contype="0" conaffinity="0" rgba=".3 .43 .53 1" />
+    <geom type="capsule" fromto="-0.2502 0.0800254 0.85 0 0.0800254 0.85" size=".004" contype="0" conaffinity="0" rgba=".3 .43 .53 1" />
+  </worldbody>
+</mujoco>

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deform3d-warp"
+version = "0.13.0"
+description = "Batched mesh deformation and surface bindings for Warp, MuJoCo and MJLab"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+dependencies = ["numpy>=1.24", "warp-lang>=1.15,<2"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.optional-dependencies]
+mujoco = ["mujoco>=3.17,<5"]
+physics = ["mujoco==4.0.1", "mujoco-warp==4.0.1", "warp-lang==1.19.0"]
+test = ["pytest>=7,<10"]
+dev = ["pytest>=7,<10", "build>=1,<2"]
+
+[project.urls]
+Repository = "https://github.com/cdevingo-bd/deform3d"
+Issues = "https://github.com/cdevingo-bd/deform3d/issues"
+
+[tool.setuptools]
+package-dir = {"" = "python"}
+include-package-data = true
+license-files = ["LICENSE", "licenses/*.txt", "third_party/*LICENSE.txt"]
+
+[tool.setuptools.packages.find]
+where = ["python"]
+include = ["deform3d_warp*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "integration: requires MuJoCo and MJWarp",
+    "gpu: requires a CUDA device and the pinned experimental physics dependencies",
+    "source_hook: requires a separately built MuJoCo source hook",
+]
